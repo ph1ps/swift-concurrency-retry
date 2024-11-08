@@ -1,4 +1,4 @@
 version: 1
 builder:
   configs:
-    - documentation_targets: [Deadline]
+    - documentation_targets: [Retry]
