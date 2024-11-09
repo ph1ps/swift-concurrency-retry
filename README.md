@@ -1,9 +1,6 @@
 # Retry
 A retry algorithm for Swift Concurrency
 
-## Rationale
-// TODO
-
 ## Details
 
 The library comes with two free functions, one with a generic clock. And another one which uses the `ContinuousClock` as default.
