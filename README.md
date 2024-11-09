@@ -3,7 +3,7 @@ A retry algorithm for Swift Concurrency
 
 ## Details
 
-The library comes with two free functions, one with a generic clock. And another one which uses the `ContinuousClock` as default.
+The library comes with two free functions, one with a generic clock and another one which uses the `ContinuousClock` as default.
 ```swift
 public func retry<R, E, C>(
   maxAttempts: Int = 3,
