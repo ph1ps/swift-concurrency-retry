@@ -323,9 +323,9 @@ public func retry<R, C>(
   maxAttempts: Int = 3,
   tolerance: C.Duration? = nil,
   clock: C,
-  operation: () async throws -> sending R,
+  operation: () async throws -> R,
   strategy: (Error) -> RetryStrategy<C> = { _ in .backoff(.none) }
-) async throws -> R where C: Clock {
+) async throws -> R where C: Clock, R: Sendable {
   
   precondition(maxAttempts > 0, "Retry must have at least one attempt")
   
@@ -422,9 +422,9 @@ public func retry<R, C>(
 public func retry<R>(
   maxAttempts: Int = 3,
   tolerance: ContinuousClock.Duration? = nil,
-  operation: () async throws -> sending R,
+  operation: () async throws -> R,
   strategy: (Error) -> RetryStrategy<ContinuousClock> = { _ in .backoff(.none) }
-) async throws -> R {
+) async throws -> R where R: Sendable {
   try await retry(maxAttempts: maxAttempts, tolerance: tolerance, clock: ContinuousClock(), operation: operation, strategy: strategy)
 }
 #endif
