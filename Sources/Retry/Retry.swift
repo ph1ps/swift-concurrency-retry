@@ -100,7 +100,7 @@ public enum RetryStrategy<C> where C: Clock {
 /// }
 ///
 /// let (data, response) = try await retry {
-///   let (data, response) = try await URLSession.shared.data(from: URL(string: "")!)
+///   let (data, response) = try await URLSession.shared.data(from: url)
 ///
 ///   if
 ///     let response = response as? HTTPURLResponse,
@@ -129,7 +129,7 @@ public enum RetryStrategy<C> where C: Clock {
 ///   - clock: The clock used to wait for delays between retries.
 ///   - isolation: The inherited actor isolation.
 ///   - operation: The asynchronous operation to perform. This function will retry the operation in case of error, based on the retry strategy provided.
-///   - strategy: A closure that determines the `RetryStrategy` for handling errors based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
+///   - strategy: A closure that determines the `RetryStrategy` for handling retries based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
 ///
 /// - Returns: The result of the operation, if successful within the allowed number of attempts.
 /// - Throws: Rethrows the last encountered error if all retry attempts fail or if the retry strategy specifies stopping retries or any error thrown by `clock`
@@ -203,7 +203,7 @@ public func retry<R, E, C>(
 /// }
 ///
 /// let (data, response) = try await retry {
-///   let (data, response) = try await URLSession.shared.data(from: URL(string: "")!)
+///   let (data, response) = try await URLSession.shared.data(from: url)
 ///
 ///   if
 ///     let response = response as? HTTPURLResponse,
@@ -231,7 +231,7 @@ public func retry<R, E, C>(
 ///   - tolerance: An optional tolerance for the delay duration to account for clock imprecision. Defaults to `nil`.
 ///   - isolation: The inherited actor isolation.
 ///   - operation: The asynchronous operation to perform. This function will retry the operation in case of error, based on the retry strategy provided.
-///   - strategy: A closure that determines the `RetryStrategy` for handling errors based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
+///   - strategy: A closure that determines the `RetryStrategy` for handling retries based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
 ///
 /// - Returns: The result of the operation, if successful within the allowed number of attempts.
 /// - Throws: Rethrows the last encountered error if all retry attempts fail or if the retry strategy specifies stopping retries or any error thrown by `ContinuousClock`
@@ -286,7 +286,7 @@ public func retry<R, E>(
 /// }
 ///
 /// let (data, response) = try await retry {
-///   let (data, response) = try await URLSession.shared.data(from: URL(string: "")!)
+///   let (data, response) = try await URLSession.shared.data(from: url)
 ///
 ///   if
 ///     let response = response as? HTTPURLResponse,
@@ -314,7 +314,7 @@ public func retry<R, E>(
 ///   - tolerance: An optional tolerance for the delay duration to account for clock imprecision. Defaults to `nil`.
 ///   - clock: The clock used to wait for delays between retries.
 ///   - operation: The asynchronous operation to perform. This function will retry the operation in case of error, based on the retry strategy provided.
-///   - strategy: A closure that determines the `RetryStrategy` for handling errors based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
+///   - strategy: A closure that determines the `RetryStrategy` for handling retries based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
 ///
 /// - Returns: The result of the operation, if successful within the allowed number of attempts.
 /// - Throws: Rethrows the last encountered error if all retry attempts fail or if the retry strategy specifies stopping retries or any error thrown by `clock`
@@ -387,7 +387,7 @@ public func retry<R, C>(
 /// }
 ///
 /// let (data, response) = try await retry {
-///   let (data, response) = try await URLSession.shared.data(from: URL(string: "")!)
+///   let (data, response) = try await URLSession.shared.data(from: url)
 ///
 ///   if
 ///     let response = response as? HTTPURLResponse,
@@ -414,7 +414,7 @@ public func retry<R, C>(
 ///   - maxAttempts: The maximum number of attempts to retry the operation. Defaults to 3.
 ///   - tolerance: An optional tolerance for the delay duration to account for clock imprecision. Defaults to `nil`.
 ///   - operation: The asynchronous operation to perform. This function will retry the operation in case of error, based on the retry strategy provided.
-///   - strategy: A closure that determines the `RetryStrategy` for handling errors based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
+///   - strategy: A closure that determines the `RetryStrategy` for handling retries based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
 ///
 /// - Returns: The result of the operation, if successful within the allowed number of attempts.
 /// - Throws: Rethrows the last encountered error if all retry attempts fail or if the retry strategy specifies stopping retries or any error thrown by `ContinuousClock`

@@ -148,32 +148,3 @@ struct CustomError: Error { }
   #expect(counter.value == 1)
 }
 #endif
-
-import Foundation
-func idk() async throws {
-  
-  struct TooManyRequests: Error {
-    let retryAfter: Double
-  }
-  
-  let (data, response) = try await retry(maxAttempts: 5) {
-    let (data, response) = try await URLSession.shared.data(from: URL(string: "")!)
-    
-    if
-      let response = response as? HTTPURLResponse,
-      let retryAfter = response.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init),
-      response.statusCode == 429
-    {
-      throw TooManyRequests(retryAfter: retryAfter)
-    }
-    
-    return (data, response)
-  } strategy: { error in
-    
-    if let error = error as? TooManyRequests {
-      return .backoff(.constant(c: .seconds(error.retryAfter)))
-    } else {
-      return .stop
-    }
-  }
-}
