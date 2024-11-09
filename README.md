@@ -1,6 +1,9 @@
 # Retry
 A retry algorithm for Swift Concurrency
 
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fph1ps%2Fswift-concurrency-retry%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/ph1ps/swift-concurrency-retry)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fph1ps%2Fswift-concurrency-retry%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/ph1ps/swift-concurrency-retry)
+
 ## Details
 
 The library comes with two free functions, one with a generic clock and another one which uses the `ContinuousClock` as default.
