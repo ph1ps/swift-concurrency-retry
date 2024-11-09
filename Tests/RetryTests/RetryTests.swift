@@ -1,15 +1,16 @@
 #if canImport(Testing)
 import Clocks
+import ConcurrencyExtras
 import Retry
 import Testing
 
 struct CustomError: Error { }
 
-@Test func testMaxAttemptsRetryStrategy() async {
+@Test func testBackoffRetryStrategy() async {
   
   var counter = 0
   await #expect(throws: CustomError.self) {
-    try await retry(maxAttempts: 3, backoff: .none(), clock: .immediate) {
+    try await retry(maxAttempts: 3, clock: .immediate) {
       counter += 1
       throw CustomError()
     }
@@ -18,99 +19,161 @@ struct CustomError: Error { }
   #expect(counter == 3)
 }
 
+@Test func testStopRetryStrategy() async {
+  
+  var counter = 0
+  await #expect(throws: CustomError.self) {
+    try await retry(maxAttempts: 3, clock: .unimplemented()) {
+      counter += 1
+      throw CustomError()
+    } strategy: { _ in
+      return .stop
+    }
+  }
+  
+  #expect(counter == 1)
+}
+
 @Test func testImmediateBackoffStrategy() async throws {
   
   let testClock = TestClock()
   let task = Task {
-    var counter = 0
-    return try await retry(maxAttempts: 3, backoff: .none(), clock: testClock) {
-      counter += 1
-      if counter == 3 {
-        return "success"
-      } else {
-        throw CustomError()
-      }
+    return try await retry(maxAttempts: 3, clock: testClock) {
+      throw CustomError()
+    } strategy: { _ in
+      return .backoff(.none)
     }
   }
   
   await testClock.advance(by: .zero)
-  try await #expect(task.value == "success")
+  await #expect(throws: CustomError.self) {
+    try await task.value
+  }
 }
 
 @Test func testConstantBackoffStrategy() async throws {
   
   let testClock = TestClock()
   let task = Task {
-    var counter = 0
-    return try await retry(maxAttempts: 3, backoff: .constant(c: .seconds(1)), clock: testClock) {
-      counter += 1
-      if counter == 3 {
-        return "success"
-      } else {
-        throw CustomError()
-      }
+    return try await retry(maxAttempts: 3, clock: testClock) {
+      throw CustomError()
+    } strategy: { _ in
+      return .backoff(.constant(c: .seconds(1)))
     }
   }
   
   await testClock.advance(by: .seconds(1))
   await testClock.advance(by: .seconds(1))
-  try await #expect(task.value == "success")
+  await #expect(throws: CustomError.self) {
+    try await task.value
+  }
 }
 
 @Test func testLinearBackoffStrategy() async throws {
   
   let testClock = TestClock()
   let task = Task {
-    var counter = 0
-    return try await retry(maxAttempts: 3, backoff: .linear(a: .seconds(3), b: .seconds(2)), clock: testClock) {
-      counter += 1
-      if counter == 3 {
-        return "success"
-      } else {
-        throw CustomError()
-      }
+    return try await retry(maxAttempts: 3, clock: testClock) {
+      throw CustomError()
+    } strategy: { _ in
+      return .backoff(.linear(a: .seconds(3), b: .seconds(2)))
     }
   }
   
   await testClock.advance(by: .seconds(2))
   await testClock.advance(by: .seconds(5))
-  try await #expect(task.value == "success")
+  await #expect(throws: CustomError.self) {
+    try await task.value
+  }
 }
 
 @Test func testCappedBackoffStrategy() async throws {
   
   let testClock = TestClock()
   let task = Task {
-    var counter = 0
-    return try await retry(maxAttempts: 3, backoff: .constant(c: .seconds(2)).max(.seconds(1)), clock: testClock) {
-      counter += 1
-      if counter == 3 {
-        return "success"
-      } else {
-        throw CustomError()
-      }
+    return try await retry(maxAttempts: 3, clock: testClock) {
+      throw CustomError()
+    } strategy: { _ in
+      return .backoff(.constant(c: .seconds(2)).max(.seconds(1)))
     }
   }
   
   await testClock.advance(by: .seconds(1))
   await testClock.advance(by: .seconds(1))
-  try await #expect(task.value == "success")
+  await #expect(throws: CustomError.self) {
+    try await task.value
+  }
 }
 
-@Test func testNotMatchingError() async {
+@Test func testCancellationInOperation() async {
   
-  struct OtherError: Error { }
+  let testClock = TestClock()
+  let counter = LockIsolated<Int>(0)
   
-  var counter = 0
-  await #expect(throws: OtherError.self) {
-    try await retry(maxAttempts: 3, backoff: .none(), clock: .immediate) {
-      counter += 1
-      throw OtherError()
-    } if: { error in
-      false
+  let task = Task {
+    try await retry(maxAttempts: 3, clock: .unimplemented()) {
+      counter.withValue { $0 += 1 }
+      try await testClock.sleep(until: .init(offset: .seconds(1)))
     }
   }
   
-  #expect(counter == 1)
+  task.cancel()
+  
+  await #expect(throws: CancellationError.self) {
+    try await task.value
+  }
+  #expect(counter.value == 1)
+}
+
+@Test func testCancellationInClock() async {
+  
+  let testClock = TestClock()
+  let counter = LockIsolated<Int>(0)
+  
+  let task = Task {
+    try await retry(maxAttempts: 3, clock: testClock) {
+      counter.withValue { $0 += 1 }
+      throw CustomError()
+    } strategy: { _ in
+      return .backoff(.constant(c: .seconds(1)))
+    }
+  }
+  
+  await testClock.advance(by: .seconds(0.5))
+  task.cancel()
+  
+  await #expect(throws: CancellationError.self) {
+    try await task.value
+  }
+  #expect(counter.value == 1)
 }
 #endif
+
+import Foundation
+func idk() async throws {
+  
+  struct TooManyRequests: Error {
+    let retryAfter: Double
+  }
+  
+  let (data, response) = try await retry(maxAttempts: 5) {
+    let (data, response) = try await URLSession.shared.data(from: URL(string: "")!)
+    
+    if
+      let response = response as? HTTPURLResponse,
+      let retryAfter = response.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init),
+      response.statusCode == 429
+    {
+      throw TooManyRequests(retryAfter: retryAfter)
+    }
+    
+    return (data, response)
+  } strategy: { error in
+    
+    if let error = error as? TooManyRequests {
+      return .backoff(.constant(c: .seconds(error.retryAfter)))
+    } else {
+      return .stop
+    }
+  }
+}
