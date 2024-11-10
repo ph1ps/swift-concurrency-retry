@@ -66,7 +66,7 @@ extension BackoffStrategy {
 }
 ```
 
-#### Constant
+#### Linear
 A backoff strategy with a linearly increasing delay between attempts.
 
 This strategy increases the delay duration after each retry, starting with an initial delay and gradually spreading out retries. It's useful when attempting to reduce retry frequency over time, allowing for quick initial retries and slower retries later on to ease system load or handle network issues gracefully.
@@ -91,7 +91,7 @@ extension BackoffStrategy {
 ```
 
 ## Examples
-To fully understand this, let's illustrate the 3 customizations of this function with `URLSession.shared.data(from: url)` as example operation:
+To fully understand this, let's illustrate 3 customizations of this function with `URLSession.shared.data(from: url)` as example operation:
 
 ### Customization 1
 Use the defaults:
