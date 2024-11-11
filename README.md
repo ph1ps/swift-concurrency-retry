@@ -45,7 +45,7 @@ This library ships with 4 prebuilt backoff strategies:
 #### None
 A backoff strategy with no delay between attempts.
 
-This strategy always returns a zero duration, meaning there is no wait time between retries. It can be useful in scenarios where retries are allowed immediately with no backoff period.
+This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations where retries should happen as soon as possible without any waiting period.
 
 $`f(x) = 0`$ where `x` is the current attempt.
 ```swift
@@ -57,7 +57,7 @@ extension BackoffStrategy {
 #### Constant
 A backoff strategy with a constant delay between each attempt.
 
-This strategy applies a constant, unchanging duration between each retry attempt, regardless of the number of attempts. The fixed delay duration is useful when you want retries to occur at regular intervals without any increase or decrease in delay over time.
+This strategy applies a fixed, unchanging delay between retries, regardless of attempt count. It’s ideal for retry patterns where uniform intervals between attempts are desired.
 
 $`f(x) = c`$ where `x` is the current attempt.
 ```swift
@@ -69,7 +69,7 @@ extension BackoffStrategy {
 #### Linear
 A backoff strategy with a linearly increasing delay between attempts.
 
-This strategy increases the delay duration after each retry, starting with an initial delay and gradually spreading out retries. It's useful when attempting to reduce retry frequency over time, allowing for quick initial retries and slower retries later on to ease system load or handle network issues gracefully.
+This strategy gradually increases the delay after each retry, beginning with an initial delay and scaling linearly. Useful for scenarios where delays need to increase consistently over time.
 
 $`f(x) = ax + b`$ where `x` is the current attempt.
 ```swift
@@ -81,7 +81,7 @@ extension BackoffStrategy {
 #### Exponential
 A backoff strategy with an exponentially increasing delay between attempts.
 
-This strategy exponentially increases the delay duration after each retry, starting with an initial delay `a` and growing by a multiplicative factor `b`. It is useful for scenarios where retries should become increasingly infrequent, to avoid excessive system load or network issues.
+This strategy grows the delay exponentially, starting with an initial duration and applying a multiplicative factor after each retry. Suitable for cases where retries should become increasingly sparse.
 
 $`f(x) = a * b^x`$ where `x` is the current attempt.
 
@@ -94,7 +94,7 @@ extension BackoffStrategy {
 #### Maximum
 Limits the maximum delay duration for this backoff strategy.
 
-This function caps the delay duration at a specified maximum value, ensuring that retries do not exceed a certain delay. It’s useful for preventing excessively long wait times between retries, while still allowing the initial backoff strategy to dictate the delay duration up to the maximum limit.
+This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
 
 $`g(x) = min(f(x), M)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
 ```swift
@@ -104,9 +104,9 @@ extension BackoffStrategy {
 ```
 
 #### Jitter
-Adds a jitter effect to the delay duration for this backoff strategy, introducing randomness to the backoff interval.
+Applies jitter to the delay duration, introducing randomness into the backoff interval.
 
-The `jitter` modifier generates a randomized delay duration for each retry attempt by selecting a random value between zero and the base delay duration calculated by the original backoff strategy. This can help to desynchronize retries, reducing the likelihood of collisions in distributed systems when multiple sources retry concurrently.
+This method randomizes the delay for each retry attempt within a range from zero up to the base duration. Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
 
 $`g(x) = random[0, f(x)[`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
 ```swift
