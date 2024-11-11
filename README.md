@@ -40,7 +40,7 @@ The `retry` function performs an asynchronous operation and retries it up to a s
 - Precondition: `maxAttempts` must be greater than 0.
 
 ### Backoff
-This library ships with 4 prebuilt backoff strategies:
+This library ships with 6 prebuilt backoff strategies:
 
 #### None
 A backoff strategy with no delay between attempts.
