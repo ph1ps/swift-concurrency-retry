@@ -50,7 +50,7 @@ This strategy always returns a zero duration, meaning there is no wait time betw
 $`f(x) = 0`$ where `x` is the current attempt.
 ```swift
 extension BackoffStrategy {
-  public static var none: Self { .init { _ in .zero } }
+  public static var none: Self { ... }
 }
 ```
 
@@ -62,7 +62,7 @@ This strategy applies a constant, unchanging duration between each retry attempt
 $`f(x) = c`$ where `x` is the current attempt.
 ```swift
 extension BackoffStrategy {
-  public static func constant(c: C.Duration) -> Self { .init { _ in c } }
+  public static func constant(c: C.Duration) -> Self { ... }
 }
 ```
 
@@ -74,7 +74,20 @@ This strategy increases the delay duration after each retry, starting with an in
 $`f(x) = ax + b`$ where `x` is the current attempt.
 ```swift
 extension BackoffStrategy {
-  public static func linear(a: C.Duration, b: C.Duration) -> Self { .init { attempt in a * attempt + b } }
+  public static func linear(a: C.Duration, b: C.Duration) -> Self { ... }
+}
+```
+
+#### Exponential
+A backoff strategy with an exponentially increasing delay between attempts.
+
+This strategy exponentially increases the delay duration after each retry, starting with an initial delay `a` and growing by a multiplicative factor `b`. It is useful for scenarios where retries should become increasingly infrequent, to avoid excessive system load or network issues.
+
+$`f(x) = a * b^x`$ where `x` is the current attempt.
+
+```swift
+extension BackoffStrategy {
+  public static func exponential(a: C.Duration, b: Int) -> Self { ... }
 }
 ```
 
@@ -86,7 +99,20 @@ This function caps the delay duration at a specified maximum value, ensuring tha
 $`g(x) = min(f(x), M)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
 ```swift
 extension BackoffStrategy {
- public func max(_ M: C.Duration) -> Self { .init { attempt in min(duration(attempt), M) } }
+ public func max(_ M: C.Duration) -> Self { ... }
+}
+```
+
+#### Jitter
+Adds a jitter effect to the delay duration for this backoff strategy, introducing randomness to the backoff interval.
+
+The `jitter` modifier generates a randomized delay duration for each retry attempt by selecting a random value between zero and the base delay duration calculated by the original backoff strategy. This can help to desynchronize retries, reducing the likelihood of collisions in distributed systems when multiple sources retry concurrently.
+
+$`g(x) = random[0, f(x)[`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
+```swift
+@available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+extension BackoffStrategy {
+  public func jitter<T>(_ generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator { ... }
 }
 ```
 
