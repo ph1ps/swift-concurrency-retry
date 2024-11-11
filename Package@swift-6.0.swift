@@ -13,7 +13,11 @@ let package = Package(
   ],
   targets: [
     .target(
-      name: "Retry"
+      name: "_PowShims"
+    ),
+    .target(
+      name: "Retry",
+      dependencies: ["_PowShims"]
     ),
     .testTarget(
       name: "RetryTests",

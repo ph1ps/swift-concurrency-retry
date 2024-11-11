@@ -1,101 +1,4 @@
-import _PowShims
-
-/// A generic strategy for implementing a backoff mechanism.
-///
-/// `BackoffStrategy` defines how to calculate a delay duration based on the number of retry attempts.
-/// This can be useful for implementing retry policies with increasing delays between attempts.
-public struct BackoffStrategy<C> where C: Clock {
-  public let duration: (Int) -> C.Duration
-  public init(duration: @escaping (Int) -> C.Duration) {
-    self.duration = duration
-  }
-}
-
-extension BackoffStrategy {
-  /// Limits the maximum delay duration for this backoff strategy.
-  ///
-  /// This function caps the delay duration at a specified maximum value, ensuring that retries do not exceed
-  /// a certain delay. It’s useful for preventing excessively long wait times between retries, while still allowing
-  /// the initial backoff strategy to dictate the delay duration up to the maximum limit.
-  ///
-  /// - Parameter M: The maximum allowable duration for each retry attempt.
-  /// - Note: `g(x) = min(f(x), M)` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func max(_ M: C.Duration) -> Self { .init { attempt in min(duration(attempt), M) } }
-  
-  /// A backoff strategy with no delay between attempts.
-  ///
-  /// This strategy always returns a zero duration, meaning there is no wait time between retries.
-  /// It can be useful in scenarios where retries are allowed immediately with no backoff period.
-  /// - Note: `f(x) = 0` where `x` is the current attempt.
-  public static var none: Self { .init { _ in .zero } }
-  
-  /// A backoff strategy with a constant delay between each attempt.
-  ///
-  /// This strategy applies a constant, unchanging duration between each retry attempt, regardless of the number of attempts.
-  /// The fixed delay duration is useful when you want retries to occur at regular intervals without any increase or decrease in
-  /// delay over time.
-  /// - Parameter c: The constant duration to wait between each retry attempt.
-  /// - Note: `f(x) = c` where `x` is the current attempt.
-  public static func constant(c: C.Duration) -> Self { .init { _ in c } }
-  
-  /// A backoff strategy with a linearly increasing delay between attempts.
-  ///
-  /// This strategy increases the delay duration after each retry, starting with an initial delay and gradually
-  /// spreading out retries. It's useful when attempting to reduce retry frequency over time, allowing for quick
-  /// initial retries and slower retries later on to ease system load or handle network issues gracefully.
-  /// - Parameters:
-  ///   - a: The incremental delay increase applied with each retry attempt.
-  ///   - b: The base delay duration added to each retry.
-  /// - Note: `f(x) = ax + b` where `x` is the current attempt.
-  public static func linear(a: C.Duration, b: C.Duration) -> Self { .init { attempt in a * attempt + b } }
-  
-  /// A backoff strategy with an exponentially increasing delay between attempts.
-  ///
-  /// This strategy exponentially increases the delay duration after each retry, starting with an initial delay `a` and growing
-  /// by a multiplicative factor `b`. It is useful for scenarios where retries should become increasingly infrequent, to avoid
-  /// excessive system load or network issues.
-  /// - Parameters:
-  ///   - a: The base delay duration applied before any retry attempt.
-  ///   - b: The growth factor applied at each retry attempt.
-  /// - Note: `f(x) = a * b^x` where `x` is the current attempt.
-  public static func exponential(a: C.Duration, b: Int) -> Self { .init { attempt in a * pow(b, attempt) } }
-}
-
-@available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-extension BackoffStrategy where C.Duration == Duration {
-  /// Adds a jitter effect to the delay duration for this backoff strategy, introducing randomness to the backoff interval.
-  ///
-  /// The `jitter` modifier generates a randomized delay duration for each retry attempt by selecting a random value
-  /// between zero and the base delay duration calculated by the original backoff strategy. This can help to
-  /// desynchronize retries, reducing the likelihood of collisions in distributed systems when multiple sources retry
-  /// concurrently.
-  ///
-  /// - Parameter generator: A custom random number generator conforming to `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
-  /// - Note: `g(x) = random[0, f(x)[` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func jitter<T>(_ generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator {
-    var generator = generator
-    let attosecondsPerSecond: Int128 = 1_000_000_000_000_000_000
-    return .init { attempt in
-      let duration = duration(attempt)
-      let (seconds, attoseconds) = Int128.random(
-        in: 0..<(Int128(duration.components.seconds) * attosecondsPerSecond + Int128(duration.components.attoseconds)),
-        using: &generator
-      ).quotientAndRemainder(dividingBy: attosecondsPerSecond)
-      return .init(secondsComponent: Int64(seconds), attosecondsComponent: Int64(attoseconds))
-    }
-  }
-}
-
-/// A strategy for managing retry attempts, with options for either backoff-based retries or immediate termination.
-///
-/// `RetryStrategy` allows you to define a retry policy that can either use a customizable backoff strategy
-/// to manage retry timing, or stop retrying entirely after a given point.
-public enum RetryStrategy<C> where C: Clock {
-  case backoff(BackoffStrategy<C>)
-  case stop
-}
-
-#if swift(>=6.0)
+#if swift(<6.0)
 /// Executes an asynchronous operation with a retry mechanism, applying a backoff strategy between attempts.
 ///
 /// The `retry` function performs an asynchronous operation and retries it up to a specified number of attempts
@@ -163,21 +66,19 @@ public enum RetryStrategy<C> where C: Clock {
 ///   - maxAttempts: The maximum number of attempts to retry the operation. Defaults to 3.
 ///   - tolerance: An optional tolerance for the delay duration to account for clock imprecision. Defaults to `nil`.
 ///   - clock: The clock used to wait for delays between retries.
-///   - isolation: The inherited actor isolation.
 ///   - operation: The asynchronous operation to perform. This function will retry the operation in case of error, based on the retry strategy provided.
 ///   - strategy: A closure that determines the `RetryStrategy` for handling retries based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
 ///
 /// - Returns: The result of the operation, if successful within the allowed number of attempts.
 /// - Throws: Rethrows the last encountered error if all retry attempts fail or if the retry strategy specifies stopping retries or any error thrown by `clock`
 /// - Precondition: `maxAttempts` must be greater than 0.
-public func retry<R, E, C>(
+public func retry<R, C>(
   maxAttempts: Int = 3,
   tolerance: C.Duration? = nil,
   clock: C,
-  isolation: isolated (any Actor)? = #isolation,
-  operation: () async throws(E) -> sending R,
-  strategy: (E) -> RetryStrategy<C> = { _ in .backoff(.none) }
-) async throws -> R where C: Clock, E: Error {
+  operation: () async throws -> R,
+  strategy: (Error) -> RetryStrategy<C> = { _ in .backoff(.none) }
+) async throws -> R where C: Clock, R: Sendable {
   
   precondition(maxAttempts > 0, "Retry must have at least one attempt")
   
@@ -265,20 +166,39 @@ public func retry<R, E, C>(
 /// - Parameters:
 ///   - maxAttempts: The maximum number of attempts to retry the operation. Defaults to 3.
 ///   - tolerance: An optional tolerance for the delay duration to account for clock imprecision. Defaults to `nil`.
-///   - isolation: The inherited actor isolation.
 ///   - operation: The asynchronous operation to perform. This function will retry the operation in case of error, based on the retry strategy provided.
 ///   - strategy: A closure that determines the `RetryStrategy` for handling retries based on the error type. Defaults to `.backoff(.none)`, meaning no delay between retries.
 ///
 /// - Returns: The result of the operation, if successful within the allowed number of attempts.
 /// - Throws: Rethrows the last encountered error if all retry attempts fail or if the retry strategy specifies stopping retries or any error thrown by `ContinuousClock`
 /// - Precondition: `maxAttempts` must be greater than 0.
-public func retry<R, E>(
+public func retry<R>(
   maxAttempts: Int = 3,
   tolerance: ContinuousClock.Duration? = nil,
-  isolation: isolated (any Actor)? = #isolation,
-  operation: () async throws(E) -> sending R,
-  strategy: (E) -> RetryStrategy<ContinuousClock> = { _ in .backoff(.none) }
-) async throws -> R where E: Error {
+  operation: () async throws -> R,
+  strategy: (Error) -> RetryStrategy<ContinuousClock> = { _ in .backoff(.none) }
+) async throws -> R where R: Sendable {
   try await retry(maxAttempts: maxAttempts, tolerance: tolerance, clock: ContinuousClock(), operation: operation, strategy: strategy)
+}
+#endif
+
+#if swift(<5.9)
+extension Task where Success == Never, Failure == Never {
+  static func sleep<C: Clock>(
+    for duration: C.Instant.Duration,
+    tolerance: C.Instant.Duration? = nil,
+    clock: C = ContinuousClock()
+  ) async throws {
+    try await clock.sleep(for: duration, tolerance: tolerance)
+  }
+}
+
+extension Clock {
+  func sleep(
+    for duration: Instant.Duration,
+    tolerance: Instant.Duration? = nil
+  ) async throws {
+    try await sleep(until: now.advanced(by: duration), tolerance: tolerance)
+  }
 }
 #endif
