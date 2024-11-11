@@ -14,35 +14,31 @@ public struct BackoffStrategy<C> where C: Clock {
 extension BackoffStrategy {
   /// Limits the maximum delay duration for this backoff strategy.
   ///
-  /// This function caps the delay duration at a specified maximum value, ensuring that retries do not exceed
-  /// a certain delay. It’s useful for preventing excessively long wait times between retries, while still allowing
-  /// the initial backoff strategy to dictate the delay duration up to the maximum limit.
-  ///
+  /// This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid
+  /// overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
   /// - Parameter M: The maximum allowable duration for each retry attempt.
   /// - Note: `g(x) = min(f(x), M)` where `x` is the current attempt and `f(x)` the base backoff strategy.
   public func max(_ M: C.Duration) -> Self { .init { attempt in min(duration(attempt), M) } }
   
   /// A backoff strategy with no delay between attempts.
   ///
-  /// This strategy always returns a zero duration, meaning there is no wait time between retries.
-  /// It can be useful in scenarios where retries are allowed immediately with no backoff period.
+  /// This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations
+  /// where retries should happen as soon as possible without any waiting period.
   /// - Note: `f(x) = 0` where `x` is the current attempt.
   public static var none: Self { .init { _ in .zero } }
   
   /// A backoff strategy with a constant delay between each attempt.
   ///
-  /// This strategy applies a constant, unchanging duration between each retry attempt, regardless of the number of attempts.
-  /// The fixed delay duration is useful when you want retries to occur at regular intervals without any increase or decrease in
-  /// delay over time.
+  /// This strategy applies a fixed, unchanging delay between retries, regardless of attempt count. It’s ideal
+  /// for retry patterns where uniform intervals between attempts are desired.
   /// - Parameter c: The constant duration to wait between each retry attempt.
   /// - Note: `f(x) = c` where `x` is the current attempt.
   public static func constant(c: C.Duration) -> Self { .init { _ in c } }
   
   /// A backoff strategy with a linearly increasing delay between attempts.
   ///
-  /// This strategy increases the delay duration after each retry, starting with an initial delay and gradually
-  /// spreading out retries. It's useful when attempting to reduce retry frequency over time, allowing for quick
-  /// initial retries and slower retries later on to ease system load or handle network issues gracefully.
+  /// This strategy gradually increases the delay after each retry, beginning with an initial delay and scaling
+  /// linearly. Useful for scenarios where delays need to increase consistently over time.
   /// - Parameters:
   ///   - a: The incremental delay increase applied with each retry attempt.
   ///   - b: The base delay duration added to each retry.
@@ -51,9 +47,8 @@ extension BackoffStrategy {
   
   /// A backoff strategy with an exponentially increasing delay between attempts.
   ///
-  /// This strategy exponentially increases the delay duration after each retry, starting with an initial delay `a` and growing
-  /// by a multiplicative factor `b`. It is useful for scenarios where retries should become increasingly infrequent, to avoid
-  /// excessive system load or network issues.
+  /// This strategy grows the delay exponentially, starting with an initial duration and applying a multiplicative
+  /// factor after each retry. Suitable for cases where retries should become increasingly sparse.
   /// - Parameters:
   ///   - a: The base delay duration applied before any retry attempt.
   ///   - b: The growth factor applied at each retry attempt.
@@ -63,14 +58,11 @@ extension BackoffStrategy {
 
 @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 extension BackoffStrategy where C.Duration == Duration {
-  /// Adds a jitter effect to the delay duration for this backoff strategy, introducing randomness to the backoff interval.
+  /// Applies jitter to the delay duration, introducing randomness into the backoff interval.
   ///
-  /// The `jitter` modifier generates a randomized delay duration for each retry attempt by selecting a random value
-  /// between zero and the base delay duration calculated by the original backoff strategy. This can help to
-  /// desynchronize retries, reducing the likelihood of collisions in distributed systems when multiple sources retry
-  /// concurrently.
-  ///
-  /// - Parameter generator: A custom random number generator conforming to `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
+  /// This method randomizes the delay for each retry attempt within a range from zero up to the base duration.
+  /// Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
+  /// - Parameter generator: A custom random number generator conforming to the `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
   /// - Note: `g(x) = random[0, f(x)[` where `x` is the current attempt and `f(x)` the base backoff strategy.
   public func jitter<T>(_ generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator {
     var generator = generator
