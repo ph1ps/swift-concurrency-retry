@@ -99,7 +99,7 @@ This method ensures the backoff delay does not exceed the defined maximum durati
 $`g(x) = min(f(x), M)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
 ```swift
 extension BackoffStrategy {
- public func max(_ M: C.Duration) -> Self { ... }
+  public func max(_ M: C.Duration) -> Self { ... }
 }
 ```
 
