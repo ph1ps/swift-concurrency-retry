@@ -6,9 +6,7 @@ import _PowShims
 /// This can be useful for implementing retry policies with increasing delays between attempts.
 public struct BackoffStrategy<C> where C: Clock {
   public let duration: (Int) -> C.Duration
-  public init(duration: @escaping (Int) -> C.Duration) {
-    self.duration = duration
-  }
+  public init(duration: @escaping (Int) -> C.Duration) { self.duration = duration }
 }
 
 extension BackoffStrategy {
@@ -64,7 +62,7 @@ extension BackoffStrategy where C.Duration == Duration {
   /// Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
   /// - Parameter generator: A custom random number generator conforming to the `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
   /// - Note: `g(x) = random[0, f(x)[` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func jitter<T>(_ generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator {
+  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator {
     var generator = generator
     let attosecondsPerSecond: Int128 = 1_000_000_000_000_000_000
     return .init { attempt in

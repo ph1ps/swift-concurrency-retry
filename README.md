@@ -112,7 +112,7 @@ $`g(x) = random[0, f(x)[`$ where `x` is the current attempt and `f(x)` the base 
 ```swift
 @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 extension BackoffStrategy where C.Duration == Duration {
-  public func jitter<T>(_ generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator { ... }
+  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator { ... }
 }
 ```
 

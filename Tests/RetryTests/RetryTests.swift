@@ -119,7 +119,7 @@ struct CustomError: Error { }
 
 @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 @Test func testJitterBackoffStrategy() {
-  let strategy = BackoffStrategy<ContinuousClock>.exponential(a: .seconds(3), b: 2).jitter(Xoshiro(seed: 1))
+  let strategy = BackoffStrategy<ContinuousClock>.exponential(a: .seconds(3), b: 2).jitter(using: Xoshiro(seed: 1))
   #expect(strategy.duration(0) == .init(secondsComponent: 2, attosecondsComponent: 162894527200761519))
   #expect(strategy.duration(1) == .init(secondsComponent: 5, attosecondsComponent: 574149987820172283))
   #expect(strategy.duration(2) == .init(secondsComponent: 0, attosecondsComponent: 699421850917031809))
