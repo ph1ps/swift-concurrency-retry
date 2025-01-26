@@ -6,63 +6,39 @@ import _PowShims
 /// This can be useful for implementing retry policies with increasing delays between attempts.
 public struct BackoffStrategy<C> where C: Clock {
   public let duration: (Int) -> C.Duration
-  public init(duration: @escaping (Int) -> C.Duration) { self.duration = duration }
+  public init(duration: @escaping (_ attempt: Int) -> C.Duration) { self.duration = duration }
 }
 
 extension BackoffStrategy {
+  /// Enforces a minimum delay duration for this backoff strategy.
+  ///
+  /// This method ensures the backoff delay is never shorter than the defined minimum duration, helping to
+  /// maintain a baseline wait time between retries. This retains the original backoff pattern but raises
+  /// durations below the specified threshold to the minimum value.
+  /// - Parameter m: The minimum allowable duration for each retry attempt.
+  /// - Note: `g(x) = max(f(x), m)` where `x` is the current attempt and `f(x)` the base backoff strategy.
+  public func min(_ m: C.Duration) -> Self {
+    .init { attempt in Swift.max(duration(attempt), m) }
+  }
+  
   /// Limits the maximum delay duration for this backoff strategy.
   ///
   /// This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid
   /// overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
   /// - Parameter M: The maximum allowable duration for each retry attempt.
   /// - Note: `g(x) = min(f(x), M)` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func max(_ M: C.Duration) -> Self { .init { attempt in min(duration(attempt), M) } }
+  public func max(_ M: C.Duration) -> Self {
+    .init { attempt in Swift.min(duration(attempt), M) }
+  }
   
-  /// A backoff strategy with no delay between attempts.
-  ///
-  /// This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations
-  /// where retries should happen as soon as possible without any waiting period.
-  /// - Note: `f(x) = 0` where `x` is the current attempt.
-  public static var none: Self { .init { _ in .zero } }
-  
-  /// A backoff strategy with a constant delay between each attempt.
-  ///
-  /// This strategy applies a fixed, unchanging delay between retries, regardless of attempt count. It’s ideal
-  /// for retry patterns where uniform intervals between attempts are desired.
-  /// - Parameter c: The constant duration to wait between each retry attempt.
-  /// - Note: `f(x) = c` where `x` is the current attempt.
-  public static func constant(c: C.Duration) -> Self { .init { _ in c } }
-  
-  /// A backoff strategy with a linearly increasing delay between attempts.
-  ///
-  /// This strategy gradually increases the delay after each retry, beginning with an initial delay and scaling
-  /// linearly. Useful for scenarios where delays need to increase consistently over time.
-  /// - Parameters:
-  ///   - a: The incremental delay increase applied with each retry attempt.
-  ///   - b: The base delay duration added to each retry.
-  /// - Note: `f(x) = ax + b` where `x` is the current attempt.
-  public static func linear(a: C.Duration, b: C.Duration) -> Self { .init { attempt in a * attempt + b } }
-  
-  /// A backoff strategy with an exponentially increasing delay between attempts.
-  ///
-  /// This strategy grows the delay exponentially, starting with an initial duration and applying a multiplicative
-  /// factor after each retry. Suitable for cases where retries should become increasingly sparse.
-  /// - Parameters:
-  ///   - a: The base delay duration applied before any retry attempt.
-  ///   - b: The growth factor applied at each retry attempt.
-  /// - Note: `f(x) = a * b^x` where `x` is the current attempt.
-  public static func exponential(a: C.Duration, b: Int) -> Self { .init { attempt in a * pow(b, attempt) } }
-}
-
-@available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-extension BackoffStrategy where C.Duration == Duration {
   /// Applies jitter to the delay duration, introducing randomness into the backoff interval.
   ///
   /// This method randomizes the delay for each retry attempt within a range from zero up to the base duration.
   /// Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
   /// - Parameter generator: A custom random number generator conforming to the `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
   /// - Note: `g(x) = random[0, f(x)[` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator {
+  @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator, C.Duration == Duration {
     var generator = generator
     let attosecondsPerSecond: Int128 = 1_000_000_000_000_000_000
     return .init { attempt in
@@ -73,6 +49,49 @@ extension BackoffStrategy where C.Duration == Duration {
       ).quotientAndRemainder(dividingBy: attosecondsPerSecond)
       return .init(secondsComponent: Int64(seconds), attosecondsComponent: Int64(attoseconds))
     }
+  }
+  
+  /// A backoff strategy with no delay between attempts.
+  ///
+  /// This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations
+  /// where retries should happen as soon as possible without any waiting period.
+  /// - Note: `f(x) = 0` where `x` is the current attempt.
+  public static var none: Self {
+    .init { _ in .zero }
+  }
+  
+  /// A backoff strategy with a constant delay between each attempt.
+  ///
+  /// This strategy applies a fixed, unchanging delay between retries, regardless of attempt count. It’s ideal
+  /// for retry patterns where uniform intervals between attempts are desired.
+  /// - Parameter c: The constant duration to wait between each retry attempt.
+  /// - Note: `f(x) = c` where `x` is the current attempt.
+  public static func constant(_ c: C.Duration) -> Self {
+    .init { _ in c }
+  }
+  
+  /// A backoff strategy with a linearly increasing delay between attempts.
+  ///
+  /// This strategy gradually increases the delay after each retry, beginning with an initial delay and scaling
+  /// linearly. Useful for scenarios where delays need to increase consistently over time.
+  /// - Parameters:
+  ///   - a: The incremental delay increase applied with each retry attempt.
+  ///   - b: The base delay duration added to each retry.
+  /// - Note: `f(x) = ax + b` where `x` is the current attempt.
+  public static func linear(a: C.Duration, b: C.Duration) -> Self {
+    .init { attempt in a * attempt + b }
+  }
+  
+  /// A backoff strategy with an exponentially increasing delay between attempts.
+  ///
+  /// This strategy grows the delay exponentially, starting with an initial duration and applying a multiplicative
+  /// factor after each retry. Suitable for cases where retries should become increasingly sparse.
+  /// - Parameters:
+  ///   - a: The base delay duration applied before any retry attempt.
+  ///   - b: The growth factor applied at each retry attempt.
+  /// - Note: `f(x) = a * b^x` where `x` is the current attempt.
+  public static func exponential(a: C.Duration, b: Double) -> Self where C.Duration == Duration {
+    .init { attempt in a * pow(b, Double(attempt)) }
   }
 }
 

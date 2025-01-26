@@ -64,7 +64,7 @@ struct CustomError: Error { }
       counter.withValue { $0 += 1 }
       throw CustomError()
     } strategy: { _ in
-      return .backoff(.constant(c: .seconds(1)))
+      return .backoff(.constant(.seconds(1)))
     }
   }
   
@@ -86,7 +86,7 @@ struct CustomError: Error { }
 }
 
 @Test func testConstantBackoffStrategy() {
-  let strategy = BackoffStrategy<ContinuousClock>.constant(c: .seconds(1))
+  let strategy = BackoffStrategy<ContinuousClock>.constant(.seconds(1))
   #expect(strategy.duration(0) == .seconds(1))
   #expect(strategy.duration(1) == .seconds(1))
   #expect(strategy.duration(2) == .seconds(1))
@@ -115,6 +115,14 @@ struct CustomError: Error { }
   #expect(strategy.duration(1) == .seconds(6))
   #expect(strategy.duration(2) == .seconds(10))
   #expect(strategy.duration(3) == .seconds(10))
+}
+
+@Test func testMinBackoffStrategy() {
+  let strategy = BackoffStrategy<ContinuousClock>.exponential(a: .seconds(3), b: 2).min(.seconds(7))
+  #expect(strategy.duration(0) == .seconds(7))
+  #expect(strategy.duration(1) == .seconds(7))
+  #expect(strategy.duration(2) == .seconds(12))
+  #expect(strategy.duration(3) == .seconds(24))
 }
 
 @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)

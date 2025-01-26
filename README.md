@@ -40,54 +40,17 @@ The `retry` function performs an asynchronous operation and retries it up to a s
 - Precondition: `maxAttempts` must be greater than 0.
 
 ### Backoff
-This library ships with 6 prebuilt backoff strategies:
+This library ships with 7 prebuilt backoff strategies:
 
-#### None
-A backoff strategy with no delay between attempts.
+#### Minimum
+Enforces a minimum delay duration for this backoff strategy.
 
-This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations where retries should happen as soon as possible without any waiting period.
+This method ensures the backoff delay is never shorter than the defined minimum duration, helping to maintain a baseline wait time between retries. This retains the original backoff pattern but raises durations below the specified threshold to the minimum value.
 
-$`f(x) = 0`$ where `x` is the current attempt.
+$`g(x) = max(f(x), m)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
 ```swift
 extension BackoffStrategy {
-  public static var none: Self { ... }
-}
-```
-
-#### Constant
-A backoff strategy with a constant delay between each attempt.
-
-This strategy applies a fixed, unchanging delay between retries, regardless of attempt count. It’s ideal for retry patterns where uniform intervals between attempts are desired.
-
-$`f(x) = c`$ where `x` is the current attempt.
-```swift
-extension BackoffStrategy {
-  public static func constant(c: C.Duration) -> Self { ... }
-}
-```
-
-#### Linear
-A backoff strategy with a linearly increasing delay between attempts.
-
-This strategy gradually increases the delay after each retry, beginning with an initial delay and scaling linearly. Useful for scenarios where delays need to increase consistently over time.
-
-$`f(x) = ax + b`$ where `x` is the current attempt.
-```swift
-extension BackoffStrategy {
-  public static func linear(a: C.Duration, b: C.Duration) -> Self { ... }
-}
-```
-
-#### Exponential
-A backoff strategy with an exponentially increasing delay between attempts.
-
-This strategy grows the delay exponentially, starting with an initial duration and applying a multiplicative factor after each retry. Suitable for cases where retries should become increasingly sparse.
-
-$`f(x) = a * b^x`$ where `x` is the current attempt.
-
-```swift
-extension BackoffStrategy {
-  public static func exponential(a: C.Duration, b: Int) -> Self { ... }
+  public func min(_ m: C.Duration) -> Self { ... }
 }
 ```
 
@@ -116,6 +79,55 @@ extension BackoffStrategy where C.Duration == Duration {
 }
 ```
 
+#### None
+A backoff strategy with no delay between attempts.
+
+This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations where retries should happen as soon as possible without any waiting period.
+
+$`f(x) = 0`$ where `x` is the current attempt.
+```swift
+extension BackoffStrategy {
+  public static var none: Self { ... }
+}
+```
+
+#### Constant
+A backoff strategy with a constant delay between each attempt.
+
+This strategy applies a fixed, unchanging delay between retries, regardless of attempt count. It’s ideal for retry patterns where uniform intervals between attempts are desired.
+
+$`f(x) = c`$ where `x` is the current attempt.
+```swift
+extension BackoffStrategy {
+  public static func constant(_ c: C.Duration) -> Self { ... }
+}
+```
+
+#### Linear
+A backoff strategy with a linearly increasing delay between attempts.
+
+This strategy gradually increases the delay after each retry, beginning with an initial delay and scaling linearly. Useful for scenarios where delays need to increase consistently over time.
+
+$`f(x) = ax + b`$ where `x` is the current attempt.
+```swift
+extension BackoffStrategy {
+  public static func linear(a: C.Duration, b: C.Duration) -> Self { ... }
+}
+```
+
+#### Exponential
+A backoff strategy with an exponentially increasing delay between attempts.
+
+This strategy grows the delay exponentially, starting with an initial duration and applying a multiplicative factor after each retry. Suitable for cases where retries should become increasingly sparse.
+
+$`f(x) = a * b^x`$ where `x` is the current attempt.
+
+```swift
+extension BackoffStrategy where C.Duration == Duration {
+  public static func exponential(a: C.Duration, b: Double) -> Self { ... }
+}
+```
+
 ## Examples
 To fully understand this, let's illustrate 3 customizations of this function with `URLSession.shared.data(from: url)` as example operation:
 
@@ -136,7 +148,7 @@ Use a custom backoff strategy and custom amount of attempts:
 let (data, response) = try await retry(maxAttempts: 5) {
   try await URLSession.shared.data(from: url)
 } strategy: { _ in
-  return .backoff(.constant(c: .seconds(2)))
+  return .backoff(.constant(.seconds(2)))
 }
 ```
 Similarly to the first customization, if any error occurs, the operation will be tried 4 more times.
@@ -163,7 +175,7 @@ let (data, response) = try await retry {
   return (data, response)
 } strategy: { error in
   if let error = error as? TooManyRequests {
-    return .backoff(.constant(c: .seconds(error.retryAfter)))
+    return .backoff(.constant(.seconds(error.retryAfter)))
   } else {
     return .stop
   }
