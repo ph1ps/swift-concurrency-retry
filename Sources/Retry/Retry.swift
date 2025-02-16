@@ -130,7 +130,7 @@ public enum RetryStrategy<C> where C: Clock {
 /// let (data, response) = try await retry(maxAttempts: 5) {
 ///   try await URLSession.shared.data(from: url)
 /// } strategy: { _ in
-///   return .backoff(.constant(c: .seconds(2)))
+///   return .backoff(.constant(.seconds(2)))
 /// }
 /// ```
 /// Similarly to the first customization, if any error occurs, the operation will be tried 4 more times.
@@ -157,7 +157,7 @@ public enum RetryStrategy<C> where C: Clock {
 ///   return (data, response)
 /// } strategy: { error in
 ///   if let error = error as? TooManyRequests {
-///     return .backoff(.constant(c: .seconds(error.retryAfter)))
+///     return .backoff(.constant(.seconds(error.retryAfter)))
 ///   } else {
 ///     return .stop
 ///   }
@@ -233,7 +233,7 @@ public func retry<R, E, C>(
 /// let (data, response) = try await retry(maxAttempts: 5) {
 ///   try await URLSession.shared.data(from: url)
 /// } strategy: { _ in
-///   return .backoff(.constant(c: .seconds(2)))
+///   return .backoff(.constant(.seconds(2)))
 /// }
 /// ```
 /// Similarly to the first customization, if any error occurs, the operation will be tried 4 more times.
@@ -260,7 +260,7 @@ public func retry<R, E, C>(
 ///   return (data, response)
 /// } strategy: { error in
 ///   if let error = error as? TooManyRequests {
-///     return .backoff(.constant(c: .seconds(error.retryAfter)))
+///     return .backoff(.constant(.seconds(error.retryAfter)))
 ///   } else {
 ///     return .stop
 ///   }
