@@ -153,18 +153,17 @@ final class TestClock<Duration: DurationProtocol & Hashable>: Clock, @unchecked 
         group.cancelAll()
       }
     } catch {
-      let comment = Comment(rawValue:
-          """
-          Expected all sleeps to finish, but some are still suspending after \(duration).
-          
-          There are sleeps suspending. This could mean you are not advancing the test clock far \
-          enough for your feature to execute its logic, or there could be a bug in your feature's \
-          logic.
-          
-          You can also increase the timeout of 'run' to be greater than \(duration).
-          """
+      Issue.record(
+        """
+        Expected all sleeps to finish, but some are still suspending after \(duration).
+        
+        There are sleeps suspending. This could mean you are not advancing the test clock far \
+        enough for your feature to execute its logic, or there could be a bug in your feature's \
+        logic.
+        
+        You can also increase the timeout of 'run' to be greater than \(duration).
+        """
       )
-      Issue.record(comment)
     }
   }
 }
