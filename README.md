@@ -42,43 +42,6 @@ The `retry` function performs an asynchronous operation and retries it up to a s
 ### Backoff
 This library ships with 7 prebuilt backoff strategies:
 
-#### Minimum
-Enforces a minimum delay duration for this backoff strategy.
-
-This method ensures the backoff delay is never shorter than the defined minimum duration, helping to maintain a baseline wait time between retries. This retains the original backoff pattern but raises durations below the specified threshold to the minimum value.
-
-$`g(x) = max(f(x), m)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
-```swift
-extension BackoffStrategy {
-  public func min(_ m: C.Duration) -> Self { ... }
-}
-```
-
-#### Maximum
-Limits the maximum delay duration for this backoff strategy.
-
-This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
-
-$`g(x) = min(f(x), M)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
-```swift
-extension BackoffStrategy {
-  public func max(_ M: C.Duration) -> Self { ... }
-}
-```
-
-#### Jitter
-Applies jitter to the delay duration, introducing randomness into the backoff interval.
-
-This method randomizes the delay for each retry attempt within a range from zero up to the base duration. Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
-
-$`g(x) = random[0, f(x)[`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
-```swift
-@available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-extension BackoffStrategy where C.Duration == Duration {
-  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator { ... }
-}
-```
-
 #### None
 A backoff strategy with no delay between attempts.
 
@@ -125,6 +88,43 @@ $`f(x) = a * b^x`$ where `x` is the current attempt.
 ```swift
 extension BackoffStrategy where C.Duration == Duration {
   public static func exponential(a: C.Duration, b: Double) -> Self { ... }
+}
+```
+
+#### Minimum
+Enforces a minimum delay duration for this backoff strategy.
+
+This method ensures the backoff delay is never shorter than the defined minimum duration, helping to maintain a baseline wait time between retries. This retains the original backoff pattern but raises durations below the specified threshold to the minimum value.
+
+$`g(x) = max(f(x), m)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
+```swift
+extension BackoffStrategy {
+  public func min(_ m: C.Duration) -> Self { ... }
+}
+```
+
+#### Maximum
+Limits the maximum delay duration for this backoff strategy.
+
+This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
+
+$`g(x) = min(f(x), M)`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
+```swift
+extension BackoffStrategy {
+  public func max(_ M: C.Duration) -> Self { ... }
+}
+```
+
+#### Jitter
+Applies jitter to the delay duration, introducing randomness into the backoff interval.
+
+This method randomizes the delay for each retry attempt within a range from zero up to the base duration. Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
+
+$`g(x) = random[0, f(x)[`$ where `x` is the current attempt and `f(x)` the base backoff strategy.
+```swift
+@available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+extension BackoffStrategy where C.Duration == Duration {
+  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator { ... }
 }
 ```
 
