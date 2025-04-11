@@ -1,5 +1,4 @@
 // swift-tools-version: 6.0
-
 import PackageDescription
 
 let package = Package(
@@ -7,9 +6,6 @@ let package = Package(
   platforms: [.iOS(.v16), .macOS(.v13), .macCatalyst(.v16), .tvOS(.v16), .watchOS(.v9), .visionOS(.v1)],
   products: [
     .library(name: "Retry", targets: ["Retry"]),
-  ],
-  dependencies: [
-    .package(url: "https://github.com/pointfreeco/swift-clocks", from: "1.0.0")
   ],
   targets: [
     .target(
@@ -21,11 +17,7 @@ let package = Package(
     ),
     .testTarget(
       name: "RetryTests",
-      dependencies: [
-        "Retry",
-        .product(name: "Clocks", package: "swift-clocks")
-      ]
+      dependencies: ["Retry"]
     )
-  ],
-  swiftLanguageModes: [.v6]
+  ]
 )

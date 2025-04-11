@@ -10,47 +10,6 @@ public struct BackoffStrategy<C> where C: Clock {
 }
 
 extension BackoffStrategy {
-  /// Enforces a minimum delay duration for this backoff strategy.
-  ///
-  /// This method ensures the backoff delay is never shorter than the defined minimum duration, helping to
-  /// maintain a baseline wait time between retries. This retains the original backoff pattern but raises
-  /// durations below the specified threshold to the minimum value.
-  /// - Parameter m: The minimum allowable duration for each retry attempt.
-  /// - Note: `g(x) = max(f(x), m)` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func min(_ m: C.Duration) -> Self {
-    .init { attempt in Swift.max(duration(attempt), m) }
-  }
-  
-  /// Limits the maximum delay duration for this backoff strategy.
-  ///
-  /// This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid
-  /// overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
-  /// - Parameter M: The maximum allowable duration for each retry attempt.
-  /// - Note: `g(x) = min(f(x), M)` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  public func max(_ M: C.Duration) -> Self {
-    .init { attempt in Swift.min(duration(attempt), M) }
-  }
-  
-  /// Applies jitter to the delay duration, introducing randomness into the backoff interval.
-  ///
-  /// This method randomizes the delay for each retry attempt within a range from zero up to the base duration.
-  /// Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
-  /// - Parameter generator: A custom random number generator conforming to the `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
-  /// - Note: `g(x) = random[0, f(x)[` where `x` is the current attempt and `f(x)` the base backoff strategy.
-  @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator, C.Duration == Duration {
-    var generator = generator
-    let attosecondsPerSecond: Int128 = 1_000_000_000_000_000_000
-    return .init { attempt in
-      let duration = duration(attempt)
-      let (seconds, attoseconds) = Int128.random(
-        in: 0..<(Int128(duration.components.seconds) * attosecondsPerSecond + Int128(duration.components.attoseconds)),
-        using: &generator
-      ).quotientAndRemainder(dividingBy: attosecondsPerSecond)
-      return .init(secondsComponent: Int64(seconds), attosecondsComponent: Int64(attoseconds))
-    }
-  }
-  
   /// A backoff strategy with no delay between attempts.
   ///
   /// This strategy enforces a zero-duration delay, making retries immediate. It’s suitable for situations
@@ -92,6 +51,47 @@ extension BackoffStrategy {
   /// - Note: `f(x) = a * b^x` where `x` is the current attempt.
   public static func exponential(a: C.Duration, b: Double) -> Self where C.Duration == Duration {
     .init { attempt in a * pow(b, Double(attempt)) }
+  }
+  
+  /// Enforces a minimum delay duration for this backoff strategy.
+  ///
+  /// This method ensures the backoff delay is never shorter than the defined minimum duration, helping to
+  /// maintain a baseline wait time between retries. This retains the original backoff pattern but raises
+  /// durations below the specified threshold to the minimum value.
+  /// - Parameter m: The minimum allowable duration for each retry attempt.
+  /// - Note: `g(x) = max(f(x), m)` where `x` is the current attempt and `f(x)` the base backoff strategy.
+  public func min(_ m: C.Duration) -> Self {
+    .init { attempt in Swift.max(duration(attempt), m) }
+  }
+  
+  /// Limits the maximum delay duration for this backoff strategy.
+  ///
+  /// This method ensures the backoff delay does not exceed the defined maximum duration, helping to avoid
+  /// overly long wait times between retries. This retains the original backoff pattern up to the specified cap.
+  /// - Parameter M: The maximum allowable duration for each retry attempt.
+  /// - Note: `g(x) = min(f(x), M)` where `x` is the current attempt and `f(x)` the base backoff strategy.
+  public func max(_ M: C.Duration) -> Self {
+    .init { attempt in Swift.min(duration(attempt), M) }
+  }
+  
+  /// Applies jitter to the delay duration, introducing randomness into the backoff interval.
+  ///
+  /// This method randomizes the delay for each retry attempt within a range from zero up to the base duration.
+  /// Jitter can help reduce contention when multiple sources retry concurrently in distributed systems.
+  /// - Parameter generator: A custom random number generator conforming to the `RandomNumberGenerator` protocol. Defaults to `SystemRandomNumberGenerator`.
+  /// - Note: `g(x) = random[0, f(x)[` where `x` is the current attempt and `f(x)` the base backoff strategy.
+  @available(iOS 18.0, macOS 15.0, macCatalyst 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+  public func jitter<T>(using generator: T = SystemRandomNumberGenerator()) -> Self where T: RandomNumberGenerator, C.Duration == Duration {
+    var generator = generator
+    let attosecondsPerSecond: Int128 = 1_000_000_000_000_000_000
+    return .init { attempt in
+      let duration = duration(attempt)
+      let (seconds, attoseconds) = Int128.random(
+        in: 0..<(Int128(duration.components.seconds) * attosecondsPerSecond + Int128(duration.components.attoseconds)),
+        using: &generator
+      ).quotientAndRemainder(dividingBy: attosecondsPerSecond)
+      return .init(secondsComponent: Int64(seconds), attosecondsComponent: Int64(attoseconds))
+    }
   }
 }
 

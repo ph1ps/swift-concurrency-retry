@@ -1,6 +1,5 @@
 #if canImport(Testing)
-import Clocks
-import ConcurrencyExtras
+import os
 import Retry
 import Testing
 
@@ -10,7 +9,7 @@ struct CustomError: Error { }
   
   var counter = 0
   await #expect(throws: CustomError.self) {
-    try await retry(maxAttempts: 3, clock: .immediate) {
+    try await retry(maxAttempts: 3, clock: ImmediateClock()) {
       counter += 1
       throw CustomError()
     }
@@ -23,7 +22,7 @@ struct CustomError: Error { }
   
   var counter = 0
   await #expect(throws: CustomError.self) {
-    try await retry(maxAttempts: 3, clock: .unimplemented()) {
+    try await retry(maxAttempts: 3, clock: UnimplementedClock()) {
       counter += 1
       throw CustomError()
     } strategy: { _ in
@@ -37,11 +36,11 @@ struct CustomError: Error { }
 @Test func testCancellationInOperation() async {
   
   let testClock = TestClock()
-  let counter = LockIsolated<Int>(0)
+  let counter = OSAllocatedUnfairLock<Int>(initialState: 0)
   
   let task = Task {
-    try await retry(maxAttempts: 3, clock: .unimplemented()) {
-      counter.withValue { $0 += 1 }
+    try await retry(maxAttempts: 3, clock: UnimplementedClock()) {
+      counter.withLock { $0 += 1 }
       try await testClock.sleep(until: .init(offset: .seconds(1)))
     }
   }
@@ -51,17 +50,19 @@ struct CustomError: Error { }
   await #expect(throws: CancellationError.self) {
     try await task.value
   }
-  #expect(counter.value == 1)
+  counter.withLock { value in
+    #expect(value == 1)
+  }
 }
 
 @Test func testCancellationInClock() async {
   
   let testClock = TestClock()
-  let counter = LockIsolated<Int>(0)
+  let counter = OSAllocatedUnfairLock<Int>(initialState: 0)
   
   let task = Task {
     try await retry(maxAttempts: 3, clock: testClock) {
-      counter.withValue { $0 += 1 }
+      counter.withLock { $0 += 1 }
       throw CustomError()
     } strategy: { _ in
       return .backoff(.constant(.seconds(1)))
@@ -74,7 +75,9 @@ struct CustomError: Error { }
   await #expect(throws: CancellationError.self) {
     try await task.value
   }
-  #expect(counter.value == 1)
+  counter.withLock { value in
+    #expect(value == 1)
+  }
 }
 
 @Test func testImmediateBackoffStrategy() {
